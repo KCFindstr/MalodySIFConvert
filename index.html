@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+	<link rel="icon" href="logo.png">
+	<!-- bootstrap -->
+	<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css">
+	<!-- icons -->
+	<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.3.1/css/all.css">
+	<!-- javascript -->
+	<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js"></script>
+	<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js"></script>
+	<script src="https://cdn.jsdelivr.net/npm/vue@2.5.17/dist/vue.js"></script>
+	<!-- external css -->
+	<link rel="stylesheet" type="text/css" href="common.css">
+	<!-- siftoma javascript -->
+	<script src="siftoma.js"></script>
+	<script src="jszip.min.js"></script>
+	<script src="index.js"></script>
+	<script src="fileSaver.js"></script>
+	<script src="wanakana.min.js"></script>
+	<title>SIF Card Viewer to Malody Chart</title>
+</head>
+<body>
+
+<!-- navbar -->
+<nav class="navbar navbar-dark bg-info">
+	<div class="navbar-brand">SIF Card Viewer to Malody Chart V0.1 Beta</div>
+</nav>
+<!-- end of navbar -->
+
+<!-- container -->
+<div class="container mt-3" id="app">
+
+<h1>Convert Chart</h1>
+
+<!-- form -->
+<form onsubmit="return false;" id="addform">
+
+<!-- url input -->
+<fieldset class="form-group mt-3 url row" :disabled="processing">
+	<div class="col-12">
+		<transition-group name="slide-horizontal">
+		<div class="row justify-content-between mb-1" v-for="(url, index) in urls" :key="url.id">
+			<input type="url" class="form-control col-8" placeholder="Chart URL, eg: https://card.niconi.co.ni/live/Live_s1023.json" v-model="url.u" :disabled="meta"/>
+			<input type="text" class="form-control col-3" placeholder="Chart Version" v-model="url.v"/>
+			<button type="button" :disabled="urls.length <= 1" class="btn btn-danger" @click="urls = urls.filter((ele) => { return ele != url; })"><i class="fas fa-times" :disabled="meta"></i></button>
+		</div>
+		</transition-group>
+	</div>
+	<div class="col-12 mt-2">
+		<button type="button" class="btn btn-success" @click="addUrl" :disabled="meta"><i class="fas fa-plus-circle mr-2"></i>Add another chart</button>
+		<button type="button" class="btn btn-warning ml-3" onclick="analyzeURL();" :disabled="meta"><i class="fas fa-check mr-2"></i>Analyze...</button>
+	</div>
+</fieldset>
+<!-- end of url input -->
+
+<transition name="slide-fade">
+<div class="alert alert-warning" v-if="alert">
+	<span>{{alert}}</span>
+	<button type="button" class="close" @click="alert = null">
+		&times;
+	</button>
+</div>
+</transition>
+
+<!-- metadata -->
+<transition name="slide-fade">
+<fieldset v-if="meta && metasuccess" :disabled="processing">
+
+<div class="form-group row justify-content-around">
+	<label for="s-title" class="col-form-label col-2">Title</label>
+	<input type="text" class="form-control col-4" id="s-title" v-model="meta.name">
+	<label for="s-romaji" class="col-form-label col-2">Romaji</label>
+	<input type="text" class="form-control col-4" id="s-romaji" v-model="meta.nameromaji">
+</div>
+<div class="form-group row justify-content-around">
+	<label for="s-artist" class="col-form-label col-2">Artist</label>
+	<input type="text" class="form-control col-4" id="s-artist" v-model="meta.artist">
+	<label for="s-creator" class="col-form-label col-2">Creator</label>
+	<input type="text" class="form-control col-4" id="s-creator" v-model="meta.creator">
+</div>
+<div class="form-group row justify-content-around">
+	<label for="s-bg" class="col-form-label col-2">Background Image</label>
+	<input type="text" class="form-control col-4" id="s-bg" value="Auto" readonly>
+	<label for="s-audio" class="col-form-label col-2">Audio File</label>
+	<input type="text" class="form-control col-4" id="s-audio" v-model="meta.audioname">
+</div>
+<div class="form-group row justify-content-around">
+	<span class="alert alert-success">Auto detected.</span>
+	<label for="s-bpm" class="col-form-label col-2">BPM</label>
+	<input type="number" class="form-control col-2" id="s-bpm" v-model.number="meta.bpm">
+	<label for="s-offset" class="col-form-label col-2">Offset</label>
+	<input type="number" class="form-control col-2" id="s-offset" v-model.number="meta.offset">
+</div>
+<div class="form-group row">
+	<button type="button" class="btn btn-outline-danger" @click="cancel"><i class="fas fa-times mr-2"></i>Cancel</button>
+	<span class="mb-0 ml-3">Modify URL and re-analyze charts.</span>
+</div>
+<div class="form-group row">
+	<button type="button" class="btn btn-info" onclick="getFiles();"><i class="fas fa-arrow-alt-circle-down mr-2"></i>Download chart pack</button>
+	<span class="mb-0 ml-3">This will contain the music file in mp3 format.</span>
+</div>
+<div class="form-group row">
+	<a role="button" class="btn btn-info" :href="meta.audio" target="_blank" :class="{disabled: processing}"><i class="fas fa-arrow-alt-circle-down mr-2"></i>Download audio</a>
+	<span class="mb-0 ml-3">If you want to download the audio file.</span>
+</div>
+<div class="form-group row">
+	<a role="button" class="btn btn-info" :href="meta.liveicon" target="_blank" :class="{disabled: processing}"><i class="fas fa-arrow-alt-circle-down mr-2"></i>Download live icon</a>
+	<span class="mb-0 ml-3">This should serve as album cover.</span>
+</div>
+
+</fieldset>
+</transition>
+<!-- end of metadata -->
+
+</form>
+<!-- end of form -->
+
+<!-- footer -->
+<footer class="page-footer font-small blue mt-3" style="border-top: 1px solid lightgray;">
+	<div class="footer-copyright text-center py-1">&copy; 2018 Copyright: 
+		<a href="mailto:cardquiz@yahoo.com">Findstr</a>
+		<br/>
+		Thanks to <a href="https://multiverso.me/AllOrigins/">All Origins</a>, <a href="https://stuk.github.io/jszip/">JSZip</a>, <a href="https://github.com/eligrey/FileSaver.js/">FileSaver.js</a>, <a href="https://wanakana.com/">WanaKana.js</a> for making this web app possible!
+	</div>
+</footer>
+<!-- end of footer -->
+
+</div>
+<!-- end of container -->
+
+</body>
+</html>

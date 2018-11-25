@@ -1,2 +1,2 @@
 # MalodySIFConvert
-Conversion tool from SIF to Malody
+Conversion tool from SIF charts to Malody charts
