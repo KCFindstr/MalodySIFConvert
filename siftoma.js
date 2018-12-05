@@ -17,7 +17,7 @@ class sifConverter {
 	 * Get epsilon
 	 */
 	static get EPS() {
-		return 1e-3;
+		return 3e-3;
 	}
 
 	/**
@@ -30,8 +30,8 @@ class sifConverter {
 	/**
 	 * Hold notes.
 	 */
-	static get HOLD() {
-		return 3;
+	static  isHold(val) {
+		return val == 3 || val == 13;
 	}
 
 	/**
@@ -39,7 +39,7 @@ class sifConverter {
 	 * @param {string} url Actual url to the data.
 	 */
 	static CORS(url) {
-		return 'http://allorigins.me/get?url=' + encodeURIComponent(url) + '&callback=?&method=raw';
+		return 'http://api.allorigins.ml/get?url=' + encodeURIComponent(url) + '&callback=?&method=raw';
 	}
 
 	/**
@@ -208,7 +208,7 @@ class sifConverter {
 		let offset = -1;
 		let check = sifConverter.divlist;
 		// compute BPM
-		for (let i = 100; i <= 250; i++) {
+		for (let i = 115; i < 230; i++) {
 			let correctCount = 0;
 			let beat = 60 / i;
 			for (let j=1; j < notes.length; j++) {
@@ -223,7 +223,7 @@ class sifConverter {
 				});
 				correctCount += suc;
 				// hold
-				if (notes[j].effect == sifConverter.HOLD) {
+				if (sifConverter.isHold(notes[j].effect)) {
 					t = notes[j].effect;
 					suc = 0;
 					check.forEach(val => {
@@ -257,7 +257,7 @@ class sifConverter {
 				let manote = sifConverter.getMaNote(cur, bpm, currentOffset);
 				curval += 100 / manote[2];
 				// hold
-				if (cur.effect == sifConverter.HOLD) {
+				if (sifConverter.isHold(cur.effect)) {
 					manote = sifConverter.getMaNote(cur, bpm, currentOffset, true);
 					curval += 50 / manote[2];
 				}
@@ -319,7 +319,7 @@ class sifConverter {
 			};
 			let manote = sifConverter.getMaNote(notes[i], bpm, offset);
 			add.beat = manote;
-			if (e == sifConverter.HOLD) {
+			if (sifConverter.isHold(e)) {
 				manote = sifConverter.getMaNote(notes[i], bpm, offset, true);
 				add.endbeat = manote;
 			}
