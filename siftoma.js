@@ -17,14 +17,14 @@ class sifConverter {
 	 * Get epsilon
 	 */
 	static get EPS() {
-		return 3e-3;
+		return 0.0015;
 	}
 
 	/**
 	 * Beat division list.
 	 */
 	static get divlist() {
-		return [{v: 6, w: 0.5}, {v: 8, w: 1}];
+		return [{v: 6, w: 0.8}, {v: 4, w: 1}];
 	}
 
 	/**
@@ -178,7 +178,7 @@ class sifConverter {
 			t += note.effect_value;
 		}
 		let beat = 60 / bpm;
-		let step = Math.floor(t / beat + sifConverter.EPS);
+		let step = Math.floor(t / beat + sifConverter.EPS * 5);
 		t -= step * beat;
 		let ret = [step, 0, 1];
 		let minDiff = 1e9;
@@ -194,6 +194,26 @@ class sifConverter {
 				ret[2] = val / g;
 			}
 		});
+		if (ret[2] <= ret[1])
+			console.log('error: ', ret);
+		return ret;
+	}
+
+	/**
+	 * Fix: weighted notes
+	 * @param {number} t time interval
+	 * @returns {number} Weight (correctness) of the note
+	 */
+	static getNoteWeight(t, beat) {
+		let ret = 0;
+		t = Math.round(t * 1000) / 1000;
+		sifConverter.divlist.forEach(val => {
+			let diff = Math.round(t / (beat / val.v));
+			let real = Math.round(diff * (beat / val.v) * 1000) / 1000;
+			let g = sifConverter.gcd(diff, val.v);
+			if (Math.abs(t - real) <= sifConverter.EPS)
+				ret = Math.max(ret, g / val.v * val.w * (1-t+real));
+		});
 		return ret;
 	}
 
@@ -206,34 +226,16 @@ class sifConverter {
 		let maxCorrectCount = -1;
 		let bpm = -1;
 		let offset = -1;
-		let check = sifConverter.divlist;
 		// compute BPM
 		for (let i = 115; i < 230; i++) {
 			let correctCount = 0;
 			let beat = 60 / i;
 			for (let j=1; j < notes.length; j++) {
 				let t = notes[j].timing_sec - notes[j-1].timing_sec;
-				let suc = 0;
-				check.forEach(val => {
-					let diff = t / (beat / val.v);
-					let real = Math.round(diff) * (beat / val.v);
-					if (Math.abs(t-real) <= sifConverter.EPS) {
-						suc = Math.max(suc, val.w);
-					}
-				});
-				correctCount += suc;
+				correctCount += sifConverter.getNoteWeight(t, beat);
 				// hold
 				if (sifConverter.isHold(notes[j].effect)) {
-					t = notes[j].effect;
-					suc = 0;
-					check.forEach(val => {
-						let diff = t / (beat / val.v);
-						let real = Math.round(diff) * (beat / val.v);
-						if (Math.abs(t-real) <= sifConverter.EPS) {
-							suc = Math.max(suc, val.w);
-						}
-					});
-					correctCount += suc;
+					correctCount += sifConverter.getNoteWeight(notes[j].effect, beat);
 				}
 			}
 			if (correctCount > maxCorrectCount) {
